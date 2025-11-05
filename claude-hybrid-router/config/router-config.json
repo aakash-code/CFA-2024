@@ -1,0 +1,172 @@
+{
+  "description": "Hybrid AI Router Configuration - Routes tasks to the best LLM based on complexity",
+  "version": "1.0.0",
+  "routing": {
+    "strategy": "intelligent",
+    "costOptimization": true,
+    "fallbackEnabled": true
+  },
+  "providers": {
+    "ollama": {
+      "name": "Ollama Local",
+      "baseUrl": "http://localhost:11434/v1",
+      "type": "local",
+      "cost": 0,
+      "priority": 1,
+      "enabled": true,
+      "models": {
+        "fast": "qwen2.5-coder:7b",
+        "powerful": "deepseek-coder:33b",
+        "reasoning": "llama3:70b"
+      },
+      "maxTokens": {
+        "qwen2.5-coder:7b": 8192,
+        "deepseek-coder:33b": 16384,
+        "llama3:70b": 128000
+      }
+    },
+    "openrouter": {
+      "name": "OpenRouter Free Tier",
+      "baseUrl": "https://openrouter.ai/api/v1",
+      "type": "cloud",
+      "cost": 0,
+      "priority": 2,
+      "enabled": true,
+      "apiKeyEnv": "OPENROUTER_API_KEY",
+      "models": {
+        "free_coder": "qwen/qwen-2.5-coder-32b-instruct:free",
+        "free_reasoning": "deepseek/deepseek-r1:free",
+        "free_general": "google/gemma-2-27b-it:free"
+      },
+      "maxTokens": 32768
+    },
+    "anthropic": {
+      "name": "Claude API",
+      "baseUrl": "https://api.anthropic.com",
+      "type": "cloud",
+      "costPerMToken": {
+        "input": 3.0,
+        "output": 15.0
+      },
+      "priority": 3,
+      "enabled": true,
+      "apiKeyEnv": "ANTHROPIC_API_KEY",
+      "models": {
+        "premium": "claude-sonnet-4-5-20250929",
+        "fast": "claude-haiku-4-5-20251001"
+      },
+      "maxTokens": 200000
+    }
+  },
+  "routes": [
+    {
+      "name": "Simple File Operations",
+      "description": "Reading, searching, listing files",
+      "conditions": {
+        "tools": ["Read", "Glob", "Grep", "Bash"],
+        "complexity": "low",
+        "maxContextTokens": 2000
+      },
+      "target": {
+        "provider": "ollama",
+        "model": "qwen2.5-coder:7b"
+      },
+      "reasoning": "Fast local model for simple operations, no API cost"
+    },
+    {
+      "name": "Code Generation & Editing",
+      "description": "Writing new code, refactoring, simple bug fixes",
+      "conditions": {
+        "tools": ["Write", "Edit"],
+        "complexity": "medium",
+        "maxContextTokens": 8000,
+        "keywords": ["function", "class", "refactor", "implement"]
+      },
+      "target": {
+        "provider": "ollama",
+        "model": "deepseek-coder:33b"
+      },
+      "reasoning": "Powerful local model for coding tasks"
+    },
+    {
+      "name": "Code Understanding & Analysis",
+      "description": "Understanding complex codebases, architectural questions",
+      "conditions": {
+        "complexity": "medium",
+        "maxContextTokens": 16000,
+        "keywords": ["explain", "understand", "how does", "architecture"]
+      },
+      "target": {
+        "provider": "ollama",
+        "model": "llama3:70b"
+      },
+      "fallback": {
+        "provider": "openrouter",
+        "model": "qwen/qwen-2.5-coder-32b-instruct:free"
+      },
+      "reasoning": "Llama 3 70B excellent for comprehension, free OpenRouter backup"
+    },
+    {
+      "name": "Critical & Complex Tasks",
+      "description": "Architecture decisions, security, performance optimization",
+      "conditions": {
+        "complexity": "high",
+        "keywords": ["security", "optimize", "architecture", "critical", "production"],
+        "requiresAccuracy": true
+      },
+      "target": {
+        "provider": "anthropic",
+        "model": "claude-sonnet-4-5-20250929"
+      },
+      "reasoning": "Premium model for critical decisions, worth the cost"
+    },
+    {
+      "name": "Large Context Tasks",
+      "description": "Tasks requiring >32K tokens of context",
+      "conditions": {
+        "minContextTokens": 32000
+      },
+      "target": {
+        "provider": "anthropic",
+        "model": "claude-sonnet-4-5-20250929"
+      },
+      "reasoning": "Claude's 200K context window needed for large codebases"
+    },
+    {
+      "name": "Web & External Data",
+      "description": "Tasks requiring web search or external APIs",
+      "conditions": {
+        "tools": ["WebSearch", "WebFetch"]
+      },
+      "target": {
+        "provider": "anthropic",
+        "model": "claude-sonnet-4-5-20250929"
+      },
+      "reasoning": "Only Claude has web access capabilities"
+    },
+    {
+      "name": "Fallback Route",
+      "description": "When Ollama is offline or slow",
+      "conditions": {
+        "ollamaOffline": true
+      },
+      "target": {
+        "provider": "openrouter",
+        "model": "qwen/qwen-2.5-coder-32b-instruct:free"
+      },
+      "reasoning": "Free cloud backup when local models unavailable"
+    }
+  ],
+  "defaultRoute": {
+    "provider": "ollama",
+    "model": "qwen2.5-coder:7b",
+    "reasoning": "Fast local model for general tasks"
+  },
+  "monitoring": {
+    "enabled": true,
+    "logPath": "/root/claude-hybrid-router/logs",
+    "trackCosts": true,
+    "trackLatency": true,
+    "trackAccuracy": false
+  }
+}
