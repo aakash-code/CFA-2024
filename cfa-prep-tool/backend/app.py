@@ -17,7 +17,7 @@ from models import Flashcard, QuizQuestion, StudySession, LearningProgress
 from services.flashcard_service import FlashcardService
 from services.quiz_service import QuizService
 from services.progress_service import ProgressService
-from content_analyzer import ContentAnalyzer
+from content_analyzer_hybrid import HybridContentAnalyzer as ContentAnalyzer
 
 # Initialize FastAPI app
 app = FastAPI(title="CFA Prep Tool", version="1.0.0")

@@ -7,7 +7,7 @@ import os
 sys.path.append(os.path.dirname(os.path.dirname(__file__)))
 
 from models import Flashcard, FlashcardReview, LearningProgress
-from content_analyzer import ContentAnalyzer
+from content_analyzer_hybrid import HybridContentAnalyzer as ContentAnalyzer
 
 class FlashcardService:
     """Service for managing flashcards and reviews."""
