@@ -1,7 +1,6 @@
-"""Hybrid content analyzer using intelligent routing between Ollama, OpenRouter, and Claude API."""
+"""Free content analyzer using local Ollama models and Finance-LLM."""
 import os
 import json
-import anthropic
 import httpx
 from typing import List, Dict, Optional
 from dotenv import load_dotenv
@@ -10,34 +9,31 @@ load_dotenv()
 
 
 class HybridContentAnalyzer:
-    """Analyze CFA content using hybrid routing for cost optimization."""
+    """Analyze CFA content using 100% free local models (Ollama + Finance-LLM)."""
 
     def __init__(self, api_key: str = None):
-        self.anthropic_api_key = api_key or os.getenv("ANTHROPIC_API_KEY")
-        self.openrouter_api_key = os.getenv("OPENROUTER_API_KEY")
         self.ollama_base_url = os.getenv("OLLAMA_BASE_URL", "http://localhost:11434/v1")
-        self.use_hybrid = os.getenv("USE_HYBRID_ROUTING", "true").lower() == "true"
-        self.routing_preference = os.getenv("ROUTING_PREFERENCE", "cost_optimized")
 
         # Finance-LLM configuration
         self.use_finance_llm = os.getenv("USE_FINANCE_LLM", "true").lower() == "true"
         self.finance_llm_model = os.getenv("FINANCE_LLM_MODEL", "finance-llm")
         self.finance_llm_available = False
 
-        # Initialize clients
-        self.claude_client = anthropic.Anthropic(api_key=self.anthropic_api_key) if self.anthropic_api_key else None
+        # Fallback models (all free local Ollama models)
+        self.fallback_models = [
+            "qwen2.5-coder:7b",
+            "deepseek-coder:33b",
+            "llama3:8b"
+        ]
 
         # Check if finance-llm is available
         if self.use_finance_llm:
             self._check_finance_llm_availability()
 
-        # Cost tracking
-        self.total_cost = 0.0
+        # Usage tracking (all free!)
         self.request_count = {
             "ollama": 0,
-            "ollama_finance": 0,  # Track finance-LLM separately
-            "openrouter": 0,
-            "anthropic": 0
+            "ollama_finance": 0  # Track finance-LLM separately
         }
 
     def _check_finance_llm_availability(self):
@@ -92,47 +88,26 @@ class HybridContentAnalyzer:
 
     def _select_provider(self, complexity: str, task_type: str) -> tuple[str, str]:
         """
-        Select the best provider and model based on complexity and routing preference.
+        Select the best free local model based on complexity.
         Returns: (provider, model)
         """
-        if not self.use_hybrid:
-            return ("anthropic", "claude-3-5-sonnet-20241022")
-
         # PRIORITY: Use Finance-LLM for CFA content when available
         # Finance-LLM is specialized for financial/CFA content and provides superior quality
-        if self.finance_llm_available and complexity in ["simple", "medium"]:
+        if self.finance_llm_available:
             return ("ollama", self.finance_llm_model)
 
-        # Cost-optimized routing (default)
-        if self.routing_preference == "cost_optimized":
-            if complexity == "simple":
-                return ("ollama", "qwen2.5-coder:7b")
-            elif complexity == "medium":
-                if task_type == "flashcards":
-                    return ("ollama", "deepseek-coder:33b")
-                else:
-                    return ("openrouter", "qwen/qwen-2.5-coder-32b-instruct:free")
-            else:  # complex
-                return ("anthropic", "claude-3-5-sonnet-20241022")
-
-        # Balanced routing
-        elif self.routing_preference == "balanced":
-            if complexity == "simple":
-                return ("ollama", "deepseek-coder:33b")
-            elif complexity == "medium":
-                return ("openrouter", "qwen/qwen-2.5-coder-32b-instruct:free")
-            else:
-                return ("anthropic", "claude-3-5-sonnet-20241022")
-
-        # Quality-first routing (use Claude more often)
-        else:
-            if complexity == "simple":
-                return ("ollama", "deepseek-coder:33b")
-            else:
-                return ("anthropic", "claude-3-5-sonnet-20241022")
+        # Fallback routing based on complexity (all free local models)
+        if complexity == "simple":
+            return ("ollama", "qwen2.5-coder:7b")
+        elif complexity == "medium":
+            return ("ollama", "deepseek-coder:33b")
+        else:  # complex
+            # For complex tasks, try deepseek-coder:33b (most powerful free model)
+            return ("ollama", "deepseek-coder:33b")
 
     def _call_ollama(self, prompt: str, model: str, max_tokens: int = 4000) -> str:
-        """Call local Ollama model."""
+        """Call local Ollama model with automatic fallback to other free models."""
+        # Try the requested model first
         try:
             with httpx.Client(timeout=60.0) as client:
                 response = client.post(
@@ -155,70 +130,44 @@ class HybridContentAnalyzer:
 
                 return data["choices"][0]["message"]["content"]
         except Exception as e:
-            print(f"Ollama error: {e}. Falling back to Claude.")
-            return self._call_claude(prompt, max_tokens)
+            print(f"⚠ Ollama error with {model}: {e}")
 
-    def _call_openrouter(self, prompt: str, model: str, max_tokens: int = 4000) -> str:
-        """Call OpenRouter API."""
-        if not self.openrouter_api_key:
-            print("No OpenRouter key, falling back to Ollama")
-            return self._call_ollama(prompt, "deepseek-coder:33b", max_tokens)
+            # Try fallback models (all free!)
+            for fallback_model in self.fallback_models:
+                if fallback_model == model:
+                    continue  # Skip if it's the same model we just tried
 
-        try:
-            with httpx.Client(timeout=60.0) as client:
-                response = client.post(
-                    "https://openrouter.ai/api/v1/chat/completions",
-                    headers={
-                        "Authorization": f"Bearer {self.openrouter_api_key}",
-                        "HTTP-Referer": "https://github.com/cfa-prep-tool",
-                        "X-Title": "CFA Prep Tool"
-                    },
-                    json={
-                        "model": model,
-                        "messages": [{"role": "user", "content": prompt}],
-                        "max_tokens": max_tokens
-                    }
-                )
-                response.raise_for_status()
-                data = response.json()
-                self.request_count["openrouter"] += 1
-                return data["choices"][0]["message"]["content"]
-        except Exception as e:
-            print(f"OpenRouter error: {e}. Falling back to Ollama.")
-            return self._call_ollama(prompt, "deepseek-coder:33b", max_tokens)
+                try:
+                    print(f"🔄 Trying fallback: {fallback_model}")
+                    with httpx.Client(timeout=60.0) as client:
+                        response = client.post(
+                            f"{self.ollama_base_url}/chat/completions",
+                            json={
+                                "model": fallback_model,
+                                "messages": [{"role": "user", "content": prompt}],
+                                "max_tokens": max_tokens,
+                                "temperature": 0.7
+                            }
+                        )
+                        response.raise_for_status()
+                        data = response.json()
+                        self.request_count["ollama"] += 1
+                        return data["choices"][0]["message"]["content"]
+                except Exception as fallback_error:
+                    print(f"⚠ Fallback {fallback_model} also failed: {fallback_error}")
+                    continue
 
-    def _call_claude(self, prompt: str, max_tokens: int = 4000) -> str:
-        """Call Claude API."""
-        if not self.claude_client:
-            raise ValueError("Claude API key not configured")
-
-        message = self.claude_client.messages.create(
-            model="claude-3-5-sonnet-20241022",
-            max_tokens=max_tokens,
-            messages=[{"role": "user", "content": prompt}]
-        )
-
-        # Approximate cost calculation
-        input_tokens = len(prompt) // 4  # Rough estimate
-        output_tokens = len(message.content[0].text) // 4
-        cost = (input_tokens * 0.003 / 1000) + (output_tokens * 0.015 / 1000)
-        self.total_cost += cost
-
-        self.request_count["anthropic"] += 1
-        return message.content[0].text
+            # If all models fail, raise an error
+            raise Exception(f"All Ollama models failed. Please ensure Ollama is running and models are installed. Run: ollama pull {model}")
 
     def _route_request(self, prompt: str, complexity: str, task_type: str, max_tokens: int = 4000) -> str:
-        """Route request to appropriate provider."""
+        """Route request to appropriate free local model."""
         provider, model = self._select_provider(complexity, task_type)
 
-        print(f"🎯 Routing {task_type} (complexity: {complexity}) → {provider}/{model}")
+        print(f"🎯 Routing {task_type} (complexity: {complexity}) → {provider}/{model} (FREE)")
 
-        if provider == "ollama":
-            return self._call_ollama(prompt, model, max_tokens)
-        elif provider == "openrouter":
-            return self._call_openrouter(prompt, model, max_tokens)
-        else:  # anthropic
-            return self._call_claude(prompt, max_tokens)
+        # Only ollama provider supported (100% free!)
+        return self._call_ollama(prompt, model, max_tokens)
 
     def generate_flashcards(self, content: str, topic: str, level: str, count: int = 10) -> List[Dict]:
         """Generate flashcards with intelligent routing."""
@@ -378,47 +327,41 @@ Return ONLY the JSON object, no additional text."""
             return {}
 
     def get_statistics(self) -> Dict:
-        """Get routing statistics and cost savings."""
+        """Get usage statistics (100% free!)."""
         total_requests = sum(self.request_count.values())
         if total_requests == 0:
             return {
                 "total_requests": 0,
-                "free_percentage": 0,
                 "total_cost": 0,
                 "estimated_savings": 0
             }
 
-        free_requests = self.request_count["ollama"] + self.request_count["openrouter"]
-        free_percentage = (free_requests / total_requests) * 100
-
-        # Estimate cost if all requests went to Claude
-        estimated_claude_only_cost = total_requests * 0.08  # Avg $0.08 per request
-        estimated_savings = estimated_claude_only_cost - self.total_cost
+        # Calculate what this would have cost with Claude API
+        estimated_claude_cost = total_requests * 0.08  # Avg $0.08 per request
 
         return {
             "total_requests": total_requests,
             "by_provider": self.request_count,
-            "free_percentage": round(free_percentage, 1),
-            "total_cost": round(self.total_cost, 2),
-            "estimated_cost_without_router": round(estimated_claude_only_cost, 2),
-            "estimated_savings": round(estimated_savings, 2),
-            "savings_percentage": round((estimated_savings / estimated_claude_only_cost * 100), 1) if estimated_claude_only_cost > 0 else 0
+            "finance_llm_requests": self.request_count["ollama_finance"],
+            "other_ollama_requests": self.request_count["ollama"],
+            "total_cost": 0.0,  # 100% FREE!
+            "estimated_cost_with_claude": round(estimated_claude_cost, 2),
+            "estimated_savings": round(estimated_claude_cost, 2),
+            "savings_percentage": 100.0  # Always 100% savings!
         }
 
     def print_statistics(self):
-        """Print routing statistics."""
+        """Print usage statistics."""
         stats = self.get_statistics()
         print("\n" + "="*60)
-        print("CFA PREP TOOL - HYBRID ROUTING STATISTICS")
+        print("CFA PREP TOOL - 100% FREE USAGE STATISTICS")
         print("="*60)
         print(f"Total Requests: {stats['total_requests']}")
-        print(f"  Ollama (Free):    {stats['by_provider']['ollama']}")
-        print(f"  OpenRouter (Free): {stats['by_provider']['openrouter']}")
-        print(f"  Claude (Paid):    {stats['by_provider']['anthropic']}")
-        print(f"\nFree Requests: {stats['free_percentage']}%")
-        print(f"Total Cost: ${stats['total_cost']}")
-        print(f"Without Router: ${stats['estimated_cost_without_router']}")
-        print(f"💰 Savings: ${stats['estimated_savings']} ({stats['savings_percentage']}%)")
+        print(f"  Finance-LLM (CFA-specialized): {stats['finance_llm_requests']}")
+        print(f"  Other Ollama models:           {stats['other_ollama_requests']}")
+        print(f"\nTotal Cost: $0.00 (100% FREE!)")
+        print(f"Cost with Claude API: ${stats['estimated_cost_with_claude']}")
+        print(f"💰 Your Savings: ${stats['estimated_savings']} ({stats['savings_percentage']}%)")
         print("="*60 + "\n")
 
 
@@ -463,9 +406,10 @@ def main():
         # Print statistics
         analyzer.print_statistics()
 
-    except ValueError as e:
+    except Exception as e:
         print(f"Error: {e}")
-        print("Please configure environment variables")
+        print("Please ensure Ollama is running and models are installed")
+        print("Run: ollama pull finance-llm  # or qwen2.5-coder:7b")
 
 if __name__ == "__main__":
     main()
