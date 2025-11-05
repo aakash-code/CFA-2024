@@ -98,7 +98,22 @@ See [LOCAL_SETUP_GUIDE.md](LOCAL_SETUP_GUIDE.md) for detailed instructions.
 - Automatic summarization of readings
 - Formula identification with explanations
 - Learning outcome statements
-- Common pitfalls and mistakes
+
+### 🆕 Bulk Content Generation (NEW!)
+- **Auto-generate 200+ flashcards from 20 CFA Level I Jupyter notebooks**
+- Integrated with [EvelynLinn/CFA-I](https://github.com/EvelynLinn/CFA-I) repository
+- Covers all 10 CFA topics comprehensively
+- One-command bulk generation
+- See [CFA_CONTENT_INTEGRATION.md](CFA_CONTENT_INTEGRATION.md) for details
+
+**Quick start:**
+```bash
+./download_cfa_content.sh           # Download CFA content
+cd cfa-prep-tool/backend
+python process_cfa_notebooks.py     # Extract content
+python bulk_generator.py --limit 3  # Test generation
+python bulk_generator.py            # Generate all (200+ flashcards!)
+```
 
 ### ✅ PDF Support
 - Upload CFA textbooks and readings
@@ -287,6 +302,7 @@ Type: Calculation
 ## 📚 Documentation
 
 - **[LOCAL_SETUP_GUIDE.md](LOCAL_SETUP_GUIDE.md)** - Complete setup instructions
+- **[CFA_CONTENT_INTEGRATION.md](CFA_CONTENT_INTEGRATION.md)** - 🆕 Bulk content generation guide
 - **[FINANCE_LLM_INTEGRATION.md](cfa-prep-tool/FINANCE_LLM_INTEGRATION.md)** - Finance-LLM details
 - **[BRANCH_STATUS.md](BRANCH_STATUS.md)** - Development progress
 
