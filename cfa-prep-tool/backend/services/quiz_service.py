@@ -9,7 +9,7 @@ import random
 sys.path.append(os.path.dirname(os.path.dirname(__file__)))
 
 from models import QuizQuestion, QuizAttempt, LearningProgress, StudySession
-from content_analyzer import ContentAnalyzer
+from content_analyzer_hybrid import HybridContentAnalyzer as ContentAnalyzer
 
 class QuizService:
     """Service for managing quizzes and quiz attempts."""
