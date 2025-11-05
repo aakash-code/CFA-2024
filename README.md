@@ -16,33 +16,65 @@ Generate high-quality flashcards, practice quizzes, and study materials for CFA 
 
 ---
 
-## 🚀 Quick Start (5 Minutes)
+## 🚀 Quick Start
 
+### Option 1: Automated Installation (Recommended - 2 Commands!)
+
+**macOS/Linux:**
 ```bash
-# 1. Clone and setup
 git clone https://github.com/aakash-code/CFA-2024.git
-cd CFA-2024/cfa-prep-tool/backend
-
-# 2. Install Ollama (AI engine)
-curl -fsSL https://ollama.com/install.sh | sh
-ollama serve &
-
-# 3. Install Finance-LLM (CFA-specialized model)
-./setup_finance_llm.sh
-
-# 4. Install Python dependencies
-pip install -r requirements.txt
-
-# 5. Configure (no API keys needed!)
-cp .env.example.hybrid .env
-
-# 6. Run the app
-python app.py
-
-# 7. Open http://localhost:8000
+cd CFA-2024
+./install.sh
 ```
 
-**That's it!** Start generating flashcards immediately.
+**Windows:**
+```cmd
+git clone https://github.com/aakash-code/CFA-2024.git
+cd CFA-2024
+install.bat
+```
+
+The script will automatically:
+- ✅ Create virtual environment
+- ✅ Install all dependencies
+- ✅ Set up Ollama and Finance-LLM
+- ✅ Configure environment
+
+Then start the app:
+```bash
+./start.sh          # macOS/Linux
+start.bat           # Windows
+```
+
+Open http://localhost:8000 - **Done!** 🎉
+
+### Option 2: Manual Installation
+
+```bash
+# 1. Clone repository
+git clone https://github.com/aakash-code/CFA-2024.git
+cd CFA-2024
+
+# 2. Create virtual environment
+python3 -m venv cfa-venv
+source cfa-venv/bin/activate  # On Windows: cfa-venv\Scripts\activate
+
+# 3. Install dependencies
+pip install -r cfa-prep-tool/backend/requirements.txt
+
+# 4. Install Ollama and models
+curl -fsSL https://ollama.com/install.sh | sh  # macOS/Linux
+# Windows: Download from https://ollama.com/download
+cd cfa-prep-tool/backend
+./setup_finance_llm.sh
+
+# 5. Configure
+cp .env.example.hybrid .env
+
+# 6. Run
+cd cfa-prep-tool/backend
+python app.py
+```
 
 See [LOCAL_SETUP_GUIDE.md](LOCAL_SETUP_GUIDE.md) for detailed instructions.
 
@@ -272,25 +304,89 @@ Type: Calculation
 
 ---
 
-## 🚨 Troubleshooting
+## 🔧 Helpful Scripts
 
-### "Ollama is not running"
+The repository includes several automated scripts to make your life easier:
+
+### Installation & Setup
+- **`./install.sh`** (macOS/Linux) or **`install.bat`** (Windows)
+  - Complete automated installation with virtual environment
+  - Installs all dependencies, Ollama, and Finance-LLM
+  - One-command setup!
+
+### Running the App
+- **`./start.sh`** (macOS/Linux) or **`start.bat`** (Windows)
+  - Activates virtual environment
+  - Starts Ollama if not running
+  - Launches the CFA Prep Tool
+  - Quick way to start working!
+
+### Verification
+- **`./verify_installation.sh`** (macOS/Linux)
+  - Checks all system requirements
+  - Verifies Python packages
+  - Confirms Ollama and models are installed
+  - Shows detailed installation status
+  - Run anytime to diagnose issues!
+
+### Virtual Environment Helpers
+- **`./activate.sh`** (created during installation)
+  - Quick shortcut to activate virtual environment
+  - Just run: `./activate.sh`
+
+**Example workflow:**
 ```bash
-ollama serve &
+# First time setup
+./install.sh
+
+# Check everything is good
+./verify_installation.sh
+
+# Every time you want to use the tool
+./start.sh
 ```
 
-### "finance-llm model not found"
+---
+
+## 🚨 Troubleshooting
+
+**First step:** Run the verification script to diagnose issues:
+```bash
+./verify_installation.sh  # macOS/Linux
+```
+
+### Common Issues
+
+#### "Ollama is not running"
+```bash
+ollama serve &  # macOS/Linux
+# Windows: Start Ollama from Start Menu
+```
+
+#### "finance-llm model not found"
 ```bash
 cd cfa-prep-tool/backend
 ./setup_finance_llm.sh
 ```
 
-### "Generation is slow"
+#### "Virtual environment not activated"
+```bash
+source cfa-venv/bin/activate  # macOS/Linux
+cfa-venv\Scripts\activate     # Windows
+```
+
+#### "Generation is slow"
 - Close other applications (free up RAM)
 - Use smaller model: `ollama pull qwen2.5-coder:7b`
 - Normal: CPU inference takes 10-20s per generation
 
-See [LOCAL_SETUP_GUIDE.md](LOCAL_SETUP_GUIDE.md) for more troubleshooting.
+#### "Import errors after git pull"
+```bash
+source cfa-venv/bin/activate
+pip install -r cfa-prep-tool/backend/requirements.txt
+```
+
+See [LOCAL_SETUP_GUIDE.md](LOCAL_SETUP_GUIDE.md) for comprehensive troubleshooting.
 
 ---
 
