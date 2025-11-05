@@ -19,16 +19,45 @@ class HybridContentAnalyzer:
         self.use_hybrid = os.getenv("USE_HYBRID_ROUTING", "true").lower() == "true"
         self.routing_preference = os.getenv("ROUTING_PREFERENCE", "cost_optimized")
 
+        # Finance-LLM configuration
+        self.use_finance_llm = os.getenv("USE_FINANCE_LLM", "true").lower() == "true"
+        self.finance_llm_model = os.getenv("FINANCE_LLM_MODEL", "finance-llm")
+        self.finance_llm_available = False
+
         # Initialize clients
         self.claude_client = anthropic.Anthropic(api_key=self.anthropic_api_key) if self.anthropic_api_key else None
+
+        # Check if finance-llm is available
+        if self.use_finance_llm:
+            self._check_finance_llm_availability()
 
         # Cost tracking
         self.total_cost = 0.0
         self.request_count = {
             "ollama": 0,
+            "ollama_finance": 0,  # Track finance-LLM separately
             "openrouter": 0,
             "anthropic": 0
         }
+
+    def _check_finance_llm_availability(self):
+        """Check if finance-llm model is available in Ollama."""
+        try:
+            with httpx.Client(timeout=5.0) as client:
+                response = client.get(f"{self.ollama_base_url.replace('/v1', '')}/api/tags")
+                if response.status_code == 200:
+                    models = response.json().get('models', [])
+                    self.finance_llm_available = any(
+                        model.get('name', '').startswith(self.finance_llm_model)
+                        for model in models
+                    )
+                    if self.finance_llm_available:
+                        print(f"✓ Finance-LLM ({self.finance_llm_model}) is available")
+                    else:
+                        print(f"⚠ Finance-LLM ({self.finance_llm_model}) not found. Install with: setup_finance_llm.sh")
+        except Exception as e:
+            print(f"Could not check for finance-llm: {e}")
+            self.finance_llm_available = False
 
     def _analyze_complexity(self, content: str, task_type: str) -> str:
         """Determine complexity level: simple, medium, or complex."""
@@ -68,6 +97,11 @@ class HybridContentAnalyzer:
         """
         if not self.use_hybrid:
             return ("anthropic", "claude-3-5-sonnet-20241022")
+
+        # PRIORITY: Use Finance-LLM for CFA content when available
+        # Finance-LLM is specialized for financial/CFA content and provides superior quality
+        if self.finance_llm_available and complexity in ["simple", "medium"]:
+            return ("ollama", self.finance_llm_model)
 
         # Cost-optimized routing (default)
         if self.routing_preference == "cost_optimized":
@@ -112,7 +146,13 @@ class HybridContentAnalyzer:
                 )
                 response.raise_for_status()
                 data = response.json()
-                self.request_count["ollama"] += 1
+
+                # Track finance-LLM usage separately
+                if model == self.finance_llm_model:
+                    self.request_count["ollama_finance"] += 1
+                else:
+                    self.request_count["ollama"] += 1
+
                 return data["choices"][0]["message"]["content"]
         except Exception as e:
             print(f"Ollama error: {e}. Falling back to Claude.")
