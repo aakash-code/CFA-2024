@@ -1,0 +1,239 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CFA Exam Prep Tool</title>
+    <link rel="stylesheet" href="/static/css/styles.css">
+</head>
+<body>
+    <div class="app-container">
+        <!-- Sidebar Navigation -->
+        <nav class="sidebar">
+            <div class="sidebar-header">
+                <h1>CFA Prep</h1>
+                <p class="tagline">Master Your Exam</p>
+            </div>
+
+            <ul class="nav-menu">
+                <li><a href="#" class="nav-link active" data-page="dashboard">Dashboard</a></li>
+                <li><a href="#" class="nav-link" data-page="flashcards">Flashcards</a></li>
+                <li><a href="#" class="nav-link" data-page="quiz">Quiz</a></li>
+                <li><a href="#" class="nav-link" data-page="progress">Progress</a></li>
+                <li><a href="#" class="nav-link" data-page="generate">Generate Content</a></li>
+            </ul>
+
+            <div class="sidebar-footer">
+                <div class="streak-display">
+                    <span class="streak-icon">🔥</span>
+                    <span class="streak-count">0</span>
+                    <span class="streak-label">day streak</span>
+                </div>
+            </div>
+        </nav>
+
+        <!-- Main Content Area -->
+        <main class="main-content">
+            <!-- Dashboard Page -->
+            <div id="dashboard-page" class="page active">
+                <h2>Dashboard</h2>
+
+                <div class="stats-grid">
+                    <div class="stat-card">
+                        <div class="stat-icon">📚</div>
+                        <div class="stat-value" id="total-topics">0</div>
+                        <div class="stat-label">Topics Studied</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-icon">🎯</div>
+                        <div class="stat-value" id="quiz-accuracy">0%</div>
+                        <div class="stat-label">Quiz Accuracy</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-icon">⏱️</div>
+                        <div class="stat-value" id="total-time">0</div>
+                        <div class="stat-label">Hours Studied</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-icon">✅</div>
+                        <div class="stat-value" id="cards-mastered">0</div>
+                        <div class="stat-label">Cards Mastered</div>
+                    </div>
+                </div>
+
+                <div class="recommendations-section">
+                    <h3>Recommendations</h3>
+                    <div id="recommendations-container"></div>
+                </div>
+
+                <div class="weak-topics-section">
+                    <h3>Areas for Improvement</h3>
+                    <div id="weak-topics-container"></div>
+                </div>
+            </div>
+
+            <!-- Flashcards Page -->
+            <div id="flashcards-page" class="page">
+                <h2>Flashcards</h2>
+
+                <div class="controls">
+                    <select id="flashcard-level" class="filter-select">
+                        <option value="">All Levels</option>
+                        <option value="L1">Level 1</option>
+                        <option value="L2">Level 2</option>
+                        <option value="L3">Level 3</option>
+                    </select>
+                    <select id="flashcard-topic" class="filter-select">
+                        <option value="">All Topics</option>
+                    </select>
+                    <button class="btn btn-primary" onclick="loadDueFlashcards()">Due for Review</button>
+                    <button class="btn btn-secondary" onclick="loadAllFlashcards()">All Cards</button>
+                </div>
+
+                <div class="flashcard-stats">
+                    <span>Total Cards: <strong id="fc-total">0</strong></span>
+                    <span>Due for Review: <strong id="fc-due">0</strong></span>
+                    <span>Reviews Today: <strong id="fc-reviews">0</strong></span>
+                </div>
+
+                <div class="flashcard-container" id="flashcard-display">
+                    <!-- Flashcard will be displayed here -->
+                    <div class="flashcard-empty">
+                        <p>Click a button above to start studying</p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Quiz Page -->
+            <div id="quiz-page" class="page">
+                <h2>Quiz</h2>
+
+                <div class="controls">
+                    <select id="quiz-level" class="filter-select">
+                        <option value="">All Levels</option>
+                        <option value="L1">Level 1</option>
+                        <option value="L2">Level 2</option>
+                        <option value="L3">Level 3</option>
+                    </select>
+                    <select id="quiz-topic" class="filter-select">
+                        <option value="">All Topics</option>
+                    </select>
+                    <input type="number" id="quiz-count" min="5" max="50" value="10" placeholder="Number of questions">
+                    <button class="btn btn-primary" onclick="startQuiz()">Start Quiz</button>
+                </div>
+
+                <div class="quiz-stats">
+                    <span>Total Attempts: <strong id="quiz-total">0</strong></span>
+                    <span>Accuracy: <strong id="quiz-acc">0%</strong></span>
+                    <span>Avg Time: <strong id="quiz-time">0s</strong></span>
+                </div>
+
+                <div class="quiz-container" id="quiz-display">
+                    <!-- Quiz questions will be displayed here -->
+                    <div class="quiz-empty">
+                        <p>Configure your quiz settings and click "Start Quiz"</p>
+                    </div>
+                </div>
+
+                <div class="quiz-results" id="quiz-results" style="display: none;">
+                    <h3>Quiz Results</h3>
+                    <div id="results-summary"></div>
+                </div>
+            </div>
+
+            <!-- Progress Page -->
+            <div id="progress-page" class="page">
+                <h2>Your Progress</h2>
+
+                <div class="progress-overview">
+                    <div class="progress-card">
+                        <h3>Study Streak</h3>
+                        <div class="streak-big">
+                            <span class="streak-number" id="current-streak">0</span>
+                            <span class="streak-text">days</span>
+                        </div>
+                        <p>Longest: <strong id="longest-streak">0</strong> days</p>
+                    </div>
+
+                    <div class="progress-card">
+                        <h3>Overall Mastery</h3>
+                        <div class="progress-circle" id="overall-mastery">
+                            <span class="progress-percentage">0%</span>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="level-tabs">
+                    <button class="tab-btn active" onclick="showLevelProgress('L1')">Level 1</button>
+                    <button class="tab-btn" onclick="showLevelProgress('L2')">Level 2</button>
+                    <button class="tab-btn" onclick="showLevelProgress('L3')">Level 3</button>
+                </div>
+
+                <div id="level-progress-container">
+                    <!-- Progress by level will be shown here -->
+                </div>
+
+                <div class="recent-activity">
+                    <h3>Recent Activity</h3>
+                    <div id="activity-timeline"></div>
+                </div>
+            </div>
+
+            <!-- Generate Content Page -->
+            <div id="generate-page" class="page">
+                <h2>Generate Study Materials</h2>
+
+                <div class="generate-form">
+                    <div class="form-group">
+                        <label for="gen-level">Level</label>
+                        <select id="gen-level" class="form-control">
+                            <option value="L1">Level 1</option>
+                            <option value="L2">Level 2</option>
+                            <option value="L3">Level 3</option>
+                        </select>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="gen-topic">Topic</label>
+                        <input type="text" id="gen-topic" class="form-control" placeholder="e.g., Time Value of Money">
+                    </div>
+
+                    <div class="form-group">
+                        <label for="gen-content">Content (paste text from your CFA materials)</label>
+                        <textarea id="gen-content" class="form-control" rows="10"
+                                  placeholder="Paste the content you want to convert into flashcards and quiz questions..."></textarea>
+                    </div>
+
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label for="gen-flashcard-count">Number of Flashcards</label>
+                            <input type="number" id="gen-flashcard-count" class="form-control" value="10" min="5" max="50">
+                        </div>
+
+                        <div class="form-group">
+                            <label for="gen-quiz-count">Number of Quiz Questions</label>
+                            <input type="number" id="gen-quiz-count" class="form-control" value="5" min="3" max="20">
+                        </div>
+                    </div>
+
+                    <div class="button-group">
+                        <button class="btn btn-primary" onclick="generateFlashcards()">Generate Flashcards</button>
+                        <button class="btn btn-primary" onclick="generateQuiz()">Generate Quiz</button>
+                        <button class="btn btn-success" onclick="generateBoth()">Generate Both</button>
+                    </div>
+
+                    <div id="generation-status" class="status-message"></div>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <!-- Loading Spinner -->
+    <div id="loading-overlay" class="loading-overlay" style="display: none;">
+        <div class="spinner"></div>
+        <p>Loading...</p>
+    </div>
+
+    <script src="/static/js/app.js"></script>
+</body>
+</html>
